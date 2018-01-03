@@ -1,0 +1,387 @@
+#!/usr/bin/env php
+<?php
+
+namespace Mergado\Maxon\Reporter;
+
+const MAXON_EXTENSION = "mex";
+const GATHERERS_PATH = __DIR__ . "/gatherers";
+
+$pidDir = getenv('HOME') ?: "/tmp";
+define('DAEMON_PID_FILE', $pidDir . '/.maxon_reporter.pid');
+
+info("Maxon Reporter");
+info("Premysl Karbula, Mergado, 2017");
+info("Machine: " . gethostname());
+
+$command = array_shift($argv);
+if ($argv) {
+	$config = parse_arguments($argv);
+} else {
+	die(get_help());
+}
+
+if ($config['daemonize']) {
+	info("Damonizing ...");
+	daemonize();
+}
+
+run($config);
+
+function run(array $config) {
+
+	$configFile = $config['config_path'];
+
+	if ($configFile) {
+
+		if (is_readable($configFile)) {
+			$json = file_get_contents($configFile);
+			$userConfig = json_decode_safe($json, true);
+		} else {
+			error("Config file '$configFile' not found!");
+		}
+
+	} else {
+		error("No config file specified!");
+		die;
+	}
+
+	$template = $userConfig['payload'] ?? [];
+	if (!$template) {
+		error("Config file doesn't contain valid 'payload' template!");
+	}
+
+	$gatherers = $userConfig['gatherers'] ?? [];
+	if (!$gatherers) {
+		error("Config file doesn't contain valid array of 'gatherers'!");
+	}
+
+	$targetUrl = $userConfig['target'] ?? false;
+	if (!$targetUrl) {
+		error("Config file doesn't contain valid 'target' URL!");
+	}
+
+	// Pass environment variables defined in config file to the current process
+	// environment.
+	$envVars = $userConfig['env'] ?? [];
+	foreach ($envVars as $name => $value) {
+		putenv("$name=$value");
+	}
+
+	while (true) {
+
+		$report = report($gatherers);
+
+		if (!$config['daemonize']) {
+			echo(json_encode($report, JSON_PRETTY_PRINT) . "\n");
+		}
+
+		if ($targetUrl) {
+			$final = prepare($template, $report);
+			send($targetUrl, $final);
+		}
+
+		if ($config['interval'] === false) {
+			break;
+		}
+
+		sleep($config['interval']);
+
+	}
+
+}
+
+function report(array $gatherers) {
+
+	$report = [];
+
+	foreach ($gatherers as $name) {
+
+		$path = GATHERERS_PATH . "/$name." . MAXON_EXTENSION;
+
+		if (!file_exists($path)) {
+			error(sprintf("Extension %s not found at '%s'.", $name, $path));
+		}
+
+		info("Gathering $name ...");
+		exec("chmod +x $path");
+		exec($path, $resultLines, $retval);
+		if ($retval !== 0) {
+			error(sprintf("Extension %s returned non-zero value %d.", $name, $retval));
+		}
+
+		$report += parse_ini_string(implode("\n", $resultLines), false, INI_SCANNER_TYPED);
+
+	}
+
+	return $report;
+
+}
+
+/**
+ * Rewrite marked fields in template array (recursively).
+ */
+function prepare(array $template, array $variables): array {
+
+	foreach ($template as $key => &$value) {
+		if (is_array($value)) {
+			$value = prepare($value, $variables);
+		} else {
+
+			// Expand expressions that may be present.
+			$value = preg_replace_callback('#\${(.*)}#', function($m) use ($variables) {
+				return expand_expressions($m[1], $variables);
+			}, $value);
+
+		}
+	}
+
+	return $template;
+
+}
+
+function expand_expressions($expr, $variables) {
+
+	$result = null;
+
+	// Find + - * / symbol, if it's present.
+	preg_match('#\s+([+\-*/])\s+#', $expr, $m);
+	$operator = $m[1] ?? null;
+
+	if ($operator) {
+
+		// Operator was present. Extract operands,
+		// expand them to variables, if possible.
+		list($l, $r) = explode($operator, $expr, 2);
+
+		$l = trim($l);
+		$r = trim($r);
+		$l = $variables[$l] ?? $l;
+		$r = $variables[$r] ?? $r;
+
+		// Calculate the result.
+		switch ($operator) {
+			case "*":
+				$result = $l * $r;
+			break;
+			case "/":
+				$result = $l / $r;
+			break;
+			case "-":
+				$result = $l - $r;
+			break;
+			case "+":
+				$result = $l + $r;
+			break;
+		}
+
+	} else {
+
+		// Simple expression - just expand variable.
+		if (isset($variables[$expr])) {
+			$result = $variables[$expr];
+		} else {
+			error("Undefined variable '$expr'");
+		}
+
+	}
+
+	return $result;
+
+}
+
+function send(string $url, array $payload) {
+
+	// Open connection
+	$ch = curl_init();
+
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_URL, $url);
+	curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+
+	curl_exec($ch);
+	$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+	info(sprintf("(%s) Payload sent (received %s).", date('r'), $code));
+
+}
+
+// Helpers.
+
+function info(string $text) {
+    echo "> $text\n";
+}
+
+function error(string $text) {
+	die("! Error: $text\n");
+}
+
+function parse_arguments(array $args): array {
+
+	$config = [
+		'config_path' => false,
+        'daemonize' => false,
+		'send' => false,
+		'interval' => false,
+		'env' => [],
+	];
+
+	while ($a = array_shift($args)) {
+		switch ($a) {
+			case "-c":
+			case "--config":
+				$config['config_path'] = array_shift($args);;
+				break;
+			case "-s":
+			case "--send":
+				$config['send'] = true;
+				break;
+			case "-d":
+			case "--daemonize":
+				$config['daemonize'] = true;
+				// If interval is already set, do not overwrite it.
+				$config['interval'] = $config['interval'] ?: 5;
+				break;
+			case "-i":
+			case "--interval":
+				$config['interval'] = max(0, (int) array_shift($args));
+				break;
+			case "-p":
+			case "--pid":
+				if ($pid = get_daemon_pid()) {
+					info("Daemon PID: " . get_daemon_pid);
+				} else {
+					error("No existing daemon!");
+				}
+				die;
+			case "-h":
+			case "--help":
+				die(get_help());
+		}
+	}
+
+	return $config;
+
+}
+
+function json_decode_safe(...$args) {
+
+	static $errors = [];
+
+	if (!$errors) {
+		$constants = get_defined_constants(true);
+		foreach ($constants["json"] as $name => $value) {
+			if (!strncmp($name, "JSON_ERROR_", 11)) {
+				$errors[$value] = $name;
+			}
+		}
+	}
+
+	$result = json_decode(...$args);
+	$err = json_last_error();
+	if ($err !== JSON_ERROR_NONE) {
+		error("Could not decode JSON ($errors[$err])");
+	}
+
+	return $result;
+
+}
+
+function get_help() {
+
+	echo <<<HELP
+
+Usage:
+reporter <arguments>
+
+Arguments:
+--help, -h
+	Display this help.
+--config <path>, -c <path>
+	Path to the config file.
+--send, -s
+	POST the gathered report to target URL specified in the config file.
+--daemonize, -d
+	Damonize the reporter after initializing (send it to background).
+--interval <seconds>, -i <seconds>
+	Delay in seconds between gatherings (do it once by default).
+--pid, -p
+	Report an existing daemon's PID.
+
+
+HELP;
+
+}
+
+// Daemonization.
+
+function daemonize() {
+
+	if ($daemonPid = get_daemon_pid()) {
+		exec("kill -9 $pid 2>&1 > /dev/null");
+		@unlink(DAEMON_PID_FILE);
+		info("Killed previous daemon running with PID $pid.\n");
+	}
+
+	$newpid = pcntl_fork();
+	if ($newpid === -1) {
+		error("Couldn't fork!");
+	} elseif ($newpid) {
+		// I'm the parent that started the fork. Let's self-destruct.
+		exit(0);
+	}
+
+	// Become the session leader
+	posix_setsid();
+	usleep(100000);
+
+	// Fork again, but now as session leader.
+	$newpid = pcntl_fork();
+	if ($newpid === -1) {
+		error("Couldn't fork!");
+	} elseif ($newpid) {
+		// I'm the parent that started the second fork. Let's self-destruct.
+		exit(0);
+	}
+
+	$pid = posix_getpid();
+	file_put_contents(DAEMON_PID_FILE, $pid);
+
+	detach_terminal();
+
+}
+
+function detach_terminal() {
+
+	fclose(STDIN);
+	fclose(STDOUT);
+	fclose(STDERR);
+
+	$void = fopen('/dev/null', 'w');
+
+	// Catch all input and send it to /dev/null.
+	// If don't do this, any output would (I figure) result in silent error and then exit.
+	// (Silent because there's no way to output any error - STDERR is closed.)
+	ob_start(function($buffer) use($void) {
+		fwrite($void, $buffer);
+	}, 100);
+
+	ob_clean();
+
+}
+
+function get_daemon_pid() {
+
+	// Does PID file exist?
+	if (!is_readable(DAEMON_PID_FILE)) {
+		return false;
+	}
+
+	$pid = file_get_contents(DAEMON_PID_FILE);
+
+	// Does the PID (process) really exist?
+	if (!file_exists( "/proc/$pid")) {
+		return false;
+	}
+
+	return $pid;
+
+}
