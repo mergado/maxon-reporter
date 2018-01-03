@@ -255,6 +255,9 @@ function parse_arguments(array $args): array {
 			case "-h":
 			case "--help":
 				die(get_help());
+			default:
+				error("Unknown option '$a'");
+				die;
 		}
 	}
 
@@ -290,9 +293,9 @@ function get_help() {
 	echo <<<HELP
 
 Usage:
-reporter <arguments>
+reporter <options>
 
-Arguments:
+Options:
 --help, -h
 	Display this help.
 --config <path>, -c <path>
