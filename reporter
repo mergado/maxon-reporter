@@ -319,9 +319,9 @@ HELP;
 function daemonize() {
 
 	if ($daemonPid = get_daemon_pid()) {
-		exec("kill -9 $pid 2>&1 > /dev/null");
+		exec("kill -9 $daemonPid 2>&1 > /dev/null");
 		@unlink(DAEMON_PID_FILE);
-		info("Killed previous daemon running with PID $pid.\n");
+		info("Killed previous daemon running with PID $daemonPid.\n");
 	}
 
 	$newpid = pcntl_fork();
