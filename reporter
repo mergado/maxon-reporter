@@ -77,6 +77,7 @@ function run(array $config) {
 
 		if ($targetUrl) {
 			$final = prepare($template, $report);
+			print_r($final);
 			send($targetUrl, $final);
 		}
 
@@ -127,9 +128,9 @@ function prepare(array $template, array $variables): array {
 			$value = prepare($value, $variables);
 		} else {
 
-			// Expand expressions that may be present.
+			// Evaluate expressions that may be present.
 			$value = preg_replace_callback('#\${(.*)}#', function($m) use ($variables) {
-				return expand_expressions($m[1], $variables);
+				return eval_expression($m[1], $variables);
 			}, $value);
 
 		}
@@ -139,24 +140,73 @@ function prepare(array $template, array $variables): array {
 
 }
 
-function expand_expressions($expr, $variables) {
+function eval_expression($expr, array $varPool = [], $state = null) {
 
-	$result = null;
+	static $grammar;
+	$grammar = $grammar ?? build_expression_grammar();
+
+	// Detect sub-expressions (parentheses) and expand (evaluate) them first.
+	// Start with the inner ones and evaluate them until there are none left.
+	while (preg_match("#{$grammar['parenthsRegex']}#", $expr)) {
+		$expr = preg_replace_callback("#{$grammar['parenthsRegex']}#", function($m) use ($varPool) {
+			return eval_expression($m[1], $varPool, 'parenthseses');
+		}, $expr);
+	}
+
+	// At this point we know there are no more parentheses in the current
+	// expression. We're gonna evaluate from left to right from now on.
+
+	// Evaluate multiplication/division pairs first.
+	if ($state !== 'multiply') {
+		// Don't stop until there are no pairs left.
+		while (preg_match("#{$grammar['multiplyRegex']}#", $expr)) {
+			$expr = preg_replace_callback("#{$grammar['multiplyRegex']}#", function($m) use ($varPool) {
+
+				// Pass the state so we're not going to be stuck in a loop
+				// matching the same multiplication/division pair again and
+				// again.
+				return eval_expression($m[0], $varPool, 'multiply');
+
+			}, $expr, 1); // Do only one operation at a time, so we start always from the left-most operand.
+		}
+	}
+
+	// Evaluate addition/subtraction pairs last.
+	if ($state !== 'add') {
+		// Don't stop until there are no pairs left.
+		while (preg_match("#{$grammar['addRegex']}#", $expr)) {
+			$expr = preg_replace_callback("#{$grammar['addRegex']}#", function($m) use ($varPool) {
+
+				// Pass the state so we're not going to be stuck in a loop
+				// matching the same addition/subtraction pair again and
+				// again.
+				return eval_expression($m[0], $varPool, 'add');
+
+			}, $expr, 1); // Do only one operation at a time, so we start always from the left-most operand.
+		}
+	}
+
+	// At this point we know that we have either an expression with two operands
+	// or a single value or variable.
 
 	// Find + - * / symbol, if it's present.
-	preg_match('#\s+([+\-*/])\s+#', $expr, $m);
-	$operator = $m[1] ?? null;
+	preg_match("#
+		{$grammar['operandRegex']}
+		\s*(?<op>[+*/\-])\s*
+		{$grammar['operandRegex']}
+	#x", $expr, $m);
+	$operator = trim($m['op'] ?? null);
 
 	if ($operator) {
 
-		// Operator was present. Extract operands,
-		// expand them to variables, if possible.
+		// Operator was present. Extract operands, expand them to variables,
+		// if possible.
 		list($l, $r) = explode($operator, $expr, 2);
 
 		$l = trim($l);
 		$r = trim($r);
-		$l = $variables[$l] ?? $l;
-		$r = $variables[$r] ?? $r;
+		$l = try_expanding_variable($l, $varPool);
+		$r = try_expanding_variable($r, $varPool);
 
 		// Calculate the result.
 		switch ($operator) {
@@ -176,16 +226,45 @@ function expand_expressions($expr, $variables) {
 
 	} else {
 
-		// Simple expression - just expand variable.
-		if (isset($variables[$expr])) {
-			$result = $variables[$expr];
-		} else {
-			error("Undefined variable '$expr'");
-		}
+		// Expression is now only a single variable or a value.
+		$result = try_expanding_variable($expr, $varPool);
 
 	}
 
 	return $result;
+
+}
+
+function try_expanding_variable($expr, array $varPool) {
+
+	static $grammar;
+	$grammar = $grammar ?? build_expression_grammar();
+
+	// If expression matches a variable name - expand it.
+	if (preg_match("#{$grammar['variableRegex']}#", $expr)) {
+		if (isset($varPool[$expr])) {
+			return $varPool[$expr];
+		} else {
+			error("Undefined variable '$expr'");
+		}
+	}
+
+	// Was not a variable, just return the value.
+	return $expr;
+
+}
+
+function build_expression_grammar() {
+
+	$g = [];
+	$g['numberRegex'] = '[+-]?\d+(\.\d+)?';
+	$g['variableRegex'] = '[a-zA-Z][a-zA-Z0-9_.]*';
+	$g['operandRegex'] = "(({$g['variableRegex']})|({$g['numberRegex']}))";
+	$g['multiplyRegex'] = "{$g['operandRegex']}\s*[*\/]\s*{$g['operandRegex']}";
+	$g['addRegex'] = "{$g['operandRegex']}\s*[+-]\s*{$g['operandRegex']}";
+	$g['parenthsRegex'] = '\(([^\(]*?)\)';
+
+	return $g;
 
 }
 

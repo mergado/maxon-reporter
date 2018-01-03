@@ -64,13 +64,13 @@
 			"machine.memory": {
 				"title": "Memory",
 				"type": "progress",
-				"value": "${machine.memory.used}",
+				"value": "${machine.memory.used / 1024}",
 				"config": {
 					"min": 0,
-					"max": "${machine.memory.total}",
-					"warning": "${0.8 * machine.memory.total}",
-					"alert": "${0.9 * machine.memory.total}",
-					"unit": "MB"
+					"max": "${machine.memory.total / 1024}",
+					"warning": "${0.8 * machine.memory.total / 1024}",
+					"alert": "${0.9 * machine.memory.total / 1024}",
+					"unit": "GB"
 				}
 			},
 			"machine.uptime.uptime": {
