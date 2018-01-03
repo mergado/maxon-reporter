@@ -1,0 +1,114 @@
+{
+	"target": "http://localhost/maxon-display/report",
+	"gatherers": [
+		"machine",
+		"apache"
+	],
+	"env": {
+		"APACHE_ACCESS_LOG": "/var/log/apache2/access.log",
+		"APACHE_ERROR_LOG": "/var/log/apache2/error.log"
+	},
+	"payload": {
+		"machine": {
+			"id": "example.machine",
+			"hostname": "${machine.hostname}",
+			"title": "Example"
+		},
+		"fields": {
+			"machine.cpu.load_score": {
+				"title": "Load Score",
+				"type": "progress",
+				"value": "${100 * machine.cpu.load_score}",
+				"config": {
+					"min": 0,
+					"max": "300",
+					"warning": "120",
+					"alert": "150",
+					"unit": "%"
+				}
+			},
+			"machine.cpu.load_avg.1": {
+				"title": "Load AVG 1",
+				"type": "progress",
+				"value": "${machine.cpu.load_avg.1}",
+				"config": {
+					"min": 0,
+					"max": "${2 * machine.cpu.load_avg_max}",
+					"warning": "${1.2 * machine.cpu.load_avg_max}",
+					"alert": "${1.8 * machine.cpu.load_avg_max}"
+				}
+			},
+			"machine.cpu.load_avg.15": {
+				"title": "Load AVG 15",
+				"type": "number",
+				"value": "${machine.cpu.load_avg.15}",
+				"config": {
+					"min": 0,
+					"max": "${2 * machine.cpu.load_avg_max}",
+					"warning": "${1.2 * machine.cpu.load_avg_max}",
+					"alert": "${1.8 * machine.cpu.load_avg_max}"
+				}
+			},
+			"machine.cpu.iowait": {
+				"title": "IO Wait",
+				"type": "number",
+				"value": "${machine.cpu.iowait}",
+				"config": {
+					"min": 0,
+					"max": 100,
+					"warning": "10",
+					"alert": "20",
+					"unit": "%"
+				}
+			},
+			"machine.memory": {
+				"title": "Memory",
+				"type": "progress",
+				"value": "${machine.memory.used}",
+				"config": {
+					"min": 0,
+					"max": "${machine.memory.total}",
+					"warning": "${0.8 * machine.memory.total}",
+					"alert": "${0.9 * machine.memory.total}",
+					"unit": "MB"
+				}
+			},
+			"machine.uptime.uptime": {
+				"title": "Uptime",
+				"type": "seconds",
+				"value": "${machine.uptime}"
+			},
+			"machine.process_count": {
+				"title": "Processes",
+				"type": "number",
+				"value": "${machine.process_count}"
+			},
+			"machine.network.upload_rate": {
+				"title": "Net Up",
+				"type": "number",
+				"value": "${machine.network.upload_rate}"
+			},
+			"machine.network.download_rate": {
+				"title": "Net Down",
+				"type": "number",
+				"value": "${machine.network.download_rate}"
+			},
+			"apache.access_per_sec": {
+				"title": "Apache Access",
+				"type": "number",
+				"value": "${apache.access_per_sec}",
+				"config": {
+					"unit": "req/s"
+				}
+			},
+			"apache.error_per_sec": {
+				"title": "Apache Errors",
+				"type": "number",
+				"value": "${apache.error_per_sec}",
+				"config": {
+					"unit": "req/s"
+				}
+			}
+		}
+	}
+}
