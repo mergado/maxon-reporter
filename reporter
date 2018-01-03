@@ -77,7 +77,6 @@ function run(array $config) {
 
 		if ($targetUrl) {
 			$final = prepare($template, $report);
-			print_r($final);
 			send($targetUrl, $final);
 		}
 
@@ -103,7 +102,7 @@ function report(array $gatherers) {
 			error(sprintf("Extension %s not found at '%s'.", $name, $path));
 		}
 
-		info("Gathering $name ...");
+		info("Gathering from '$name' ...");
 		exec("chmod +x $path");
 		exec($path, $resultLines, $retval);
 		if ($retval !== 0) {
@@ -191,20 +190,16 @@ function eval_expression($expr, array $varPool = [], $state = null) {
 
 	// Find + - * / symbol, if it's present.
 	preg_match("#
-		{$grammar['operandRegex']}
+		(?<l>{$grammar['operandRegex']})
 		\s*(?<op>[+*/\-])\s*
-		{$grammar['operandRegex']}
+		(?<r>{$grammar['operandRegex']})
 	#x", $expr, $m);
 	$operator = trim($m['op'] ?? null);
 
 	if ($operator) {
 
-		// Operator was present. Extract operands, expand them to variables,
-		// if possible.
-		list($l, $r) = explode($operator, $expr, 2);
-
-		$l = trim($l);
-		$r = trim($r);
+		$l = trim($m['l']);
+		$r = trim($m['r']);
 		$l = try_expanding_variable($l, $varPool);
 		$r = try_expanding_variable($r, $varPool);
 
