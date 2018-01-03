@@ -247,7 +247,7 @@ function parse_arguments(array $args): array {
 			case "-p":
 			case "--pid":
 				if ($pid = get_daemon_pid()) {
-					info("Daemon PID: " . get_daemon_pid);
+					info("Daemon PID: " . $pid);
 				} else {
 					error("No existing daemon!");
 				}
