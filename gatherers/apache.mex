@@ -8,13 +8,15 @@ GATHER_INTERVAL=3
 WAIT_INTERVAL=$(expr $GATHER_INTERVAL + 1)
 
 function lines_per_sec {
-	TMPFILE="/tmp/mex_apache_lps.tmp"
-	(tail -n0 -f $1 $2 & P=$! ; sleep $GATHER_INTERVAL; kill -9 $P) | wc -l > $TMPFILE &
+	HASH=$(echo -n $1 | md5sum | awk '{print $1}')
+	TMPFILE="/tmp/mex_apache_lps_$HASH.tmp"
+	(tail -n0 -f $1 & P=$! ; sleep $GATHER_INTERVAL; kill -9 $P) | wc -l > $TMPFILE &
 	echo $TMPFILE
 }
 
 function grep_lines_per_sec {
-	TMPFILE="/tmp/mex_apache_glps.tmp"
+	HASH=$(echo "$1 $2" | md5sum | awk '{print $1}')
+	TMPFILE="/tmp/mex_apache_glps_{$HASH}.tmp"
 	(tail -n0 -f $1 & P=$! ; sleep $GATHER_INTERVAL; kill -9 $P) | grep $2 | wc -l > $TMPFILE &
 	echo $TMPFILE
 }
