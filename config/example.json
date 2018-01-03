@@ -86,12 +86,18 @@
 			"machine.network.upload_rate": {
 				"title": "Net Up",
 				"type": "number",
-				"value": "${machine.network.upload_rate}"
+				"value": "${machine.network.upload_rate / 1024}",
+				"config": {
+					"unit": "MB/s"
+				}
 			},
 			"machine.network.download_rate": {
 				"title": "Net Down",
 				"type": "number",
-				"value": "${machine.network.download_rate}"
+				"value": "${machine.network.download_rate / 1024}",
+				"config": {
+					"unit": "MB/s"
+				}
 			},
 			"apache.access_per_sec": {
 				"title": "Apache Access",
