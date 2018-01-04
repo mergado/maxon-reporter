@@ -7,9 +7,6 @@ require_once __DIR__ . '/loader.php';
 const MAXON_EXTENSION = "mex";
 const GATHERERS_PATH = __DIR__ . "/gatherers";
 
-var_dump(eval_expression("1+2 * 3 / 4*-3 +1*-12/-4"));
-die;
-
 $pidDir = getenv('HOME') ?: "/tmp";
 define('DAEMON_PID_FILE', $pidDir . '/.maxon_reporter.pid');
 
@@ -236,6 +233,8 @@ Options:
 	Delay in seconds between gatherings (do it once by default).
 --pid, -p
 	Report an existing daemon's PID.
+--self-update
+	Perform a self-update from online repository.
 
 
 HELP;
