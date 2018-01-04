@@ -35,7 +35,7 @@ function url_fetch(string $url) {
 
 	// Check if the URL doesn't return an error.
 	if ($headers = get_headers($url, null, $context)) {
-		[$http, $code, $reason] = explode(' ', reset($headers), 3);
+		list($http, $code, $reason) = explode(' ', reset($headers), 3);
 		if ($code > 400) {
 			error("Cannot fetch '$url': [$code] $reason.");
 		}
