@@ -1,0 +1,43 @@
+#!/usr/bin/env php
+<?php
+
+if (!\Phar::canWrite()) {
+	die("Cannot create PHAR files. (phar.readonly must be set to 0)");
+}
+
+const BUILD_TARGET = __DIR__ . '/../build/reporter.phar';
+const TARGET_EXECUTABLE = __DIR__ . '/../build/reporter';
+const APP_DIR = __DIR__ . '/../src';
+
+$p = new Phar(BUILD_TARGET);
+$p->buildFromDirectory(APP_DIR);
+$p->setStub(get_stub());
+
+// Mark as executable.
+exec(sprintf("chmod +x %s", BUILD_TARGET));
+// Remove .phar from the filename.
+exec(sprintf("mv %s %s", BUILD_TARGET, TARGET_EXECUTABLE));
+
+function get_stub() {
+
+	$date = new \DateTime('now', new \DateTimeZone('UTC'));
+	$datetime = $date->format('c');
+
+	return <<<STUB
+#!/usr/bin/env php
+<?php
+const COMPILED_AT = "$datetime";
+const BINARY_PATH = __FILE__;
+if (extension_loaded('phar')) {
+	Phar::interceptFileFuncs();
+	set_include_path('phar://' . __FILE__ . '/' . get_include_path());
+	Phar::mapPhar('reporter');
+	include 'phar://' . __FILE__ . '/reporter.php';
+	die;
+} else {
+	die("Cannot execute PHAR archive. PHAR extension is not enabled.");
+}
+__HALT_COMPILER();
+STUB;
+
+}

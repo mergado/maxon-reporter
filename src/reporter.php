@@ -1,16 +1,24 @@
-#!/usr/bin/env php
 <?php
 
 namespace Mergado\Maxon\Reporter;
 
+require_once __DIR__ . '/loader.php';
+
 const MAXON_EXTENSION = "mex";
 const GATHERERS_PATH = __DIR__ . "/gatherers";
+
+var_dump(eval_expression("1+2 * 3 / 4*-3 +1*-12/-4"));
+die;
 
 $pidDir = getenv('HOME') ?: "/tmp";
 define('DAEMON_PID_FILE', $pidDir . '/.maxon_reporter.pid');
 
 info("Maxon Reporter");
+
 info("Premysl Karbula, Mergado, 2017");
+if (defined('COMPILED_AT')) {
+	info(sprintf("Compiled at: %s", COMPILED_AT));
+}
 info("Machine: " . gethostname());
 
 $command = array_shift($argv);
@@ -139,130 +147,6 @@ function prepare(array $template, array $variables): array {
 
 }
 
-function eval_expression($expr, array $varPool = [], $state = null) {
-
-	static $grammar;
-	$grammar = $grammar ?? build_expression_grammar();
-
-	// Detect sub-expressions (parentheses) and expand (evaluate) them first.
-	// Start with the inner ones and evaluate them until there are none left.
-	while (preg_match("#{$grammar['parenthsRegex']}#", $expr)) {
-		$expr = preg_replace_callback("#{$grammar['parenthsRegex']}#", function($m) use ($varPool) {
-			return eval_expression($m[1], $varPool, 'parenthseses');
-		}, $expr);
-	}
-
-	// At this point we know there are no more parentheses in the current
-	// expression. We're gonna evaluate from left to right from now on.
-
-	// Evaluate multiplication/division pairs first.
-	if ($state !== 'multiply') {
-		// Don't stop until there are no pairs left.
-		while (preg_match("#{$grammar['multiplyRegex']}#", $expr)) {
-			$expr = preg_replace_callback("#{$grammar['multiplyRegex']}#", function($m) use ($varPool) {
-
-				// Pass the state so we're not going to be stuck in a loop
-				// matching the same multiplication/division pair again and
-				// again.
-				return eval_expression($m[0], $varPool, 'multiply');
-
-			}, $expr, 1); // Do only one operation at a time, so we start always from the left-most operand.
-		}
-	}
-
-	// Evaluate addition/subtraction pairs last.
-	if ($state !== 'add') {
-		// Don't stop until there are no pairs left.
-		while (preg_match("#{$grammar['addRegex']}#", $expr)) {
-			$expr = preg_replace_callback("#{$grammar['addRegex']}#", function($m) use ($varPool) {
-
-				// Pass the state so we're not going to be stuck in a loop
-				// matching the same addition/subtraction pair again and
-				// again.
-				return eval_expression($m[0], $varPool, 'add');
-
-			}, $expr, 1); // Do only one operation at a time, so we start always from the left-most operand.
-		}
-	}
-
-	// At this point we know that we have either an expression with two operands
-	// or a single value or variable.
-
-	// Find + - * / symbol, if it's present.
-	preg_match("#
-		(?<l>{$grammar['operandRegex']})
-		\s*(?<op>[+*/\-])\s*
-		(?<r>{$grammar['operandRegex']})
-	#x", $expr, $m);
-	$operator = trim($m['op'] ?? null);
-
-	if ($operator) {
-
-		$l = trim($m['l']);
-		$r = trim($m['r']);
-		$l = try_expanding_variable($l, $varPool);
-		$r = try_expanding_variable($r, $varPool);
-
-		// Calculate the result.
-		switch ($operator) {
-			case "*":
-				$result = $l * $r;
-			break;
-			case "/":
-				$result = $l / $r;
-			break;
-			case "-":
-				$result = $l - $r;
-			break;
-			case "+":
-				$result = $l + $r;
-			break;
-		}
-
-	} else {
-
-		// Expression is now only a single variable or a value.
-		$result = try_expanding_variable($expr, $varPool);
-
-	}
-
-	return $result;
-
-}
-
-function try_expanding_variable($expr, array $varPool) {
-
-	static $grammar;
-	$grammar = $grammar ?? build_expression_grammar();
-
-	// If expression matches a variable name - expand it.
-	if (preg_match("#{$grammar['variableRegex']}#", $expr)) {
-		if (isset($varPool[$expr])) {
-			return $varPool[$expr];
-		} else {
-			error("Undefined variable '$expr'");
-		}
-	}
-
-	// Was not a variable, just return the value.
-	return $expr;
-
-}
-
-function build_expression_grammar() {
-
-	$g = [];
-	$g['numberRegex'] = '[+-]?\d+(\.\d+)?';
-	$g['variableRegex'] = '[a-zA-Z][a-zA-Z0-9_.]*';
-	$g['operandRegex'] = "(({$g['variableRegex']})|({$g['numberRegex']}))";
-	$g['multiplyRegex'] = "{$g['operandRegex']}\s*[*\/]\s*{$g['operandRegex']}";
-	$g['addRegex'] = "{$g['operandRegex']}\s*[+-]\s*{$g['operandRegex']}";
-	$g['parenthsRegex'] = '\(([^\(]*?)\)';
-
-	return $g;
-
-}
-
 function send(string $url, array $payload) {
 
 	// Open connection
@@ -278,21 +162,11 @@ function send(string $url, array $payload) {
 
 }
 
-// Helpers.
-
-function info(string $text) {
-    echo "> $text\n";
-}
-
-function error(string $text) {
-	die("! Error: $text\n");
-}
-
 function parse_arguments(array $args): array {
 
 	$config = [
 		'config_path' => false,
-        'daemonize' => false,
+		'daemonize' => false,
 		'send' => false,
 		'interval' => false,
 		'env' => [],
@@ -309,7 +183,7 @@ function parse_arguments(array $args): array {
 				$config['send'] = true;
 				break;
 			case "-d":
-			case "--daemonize":
+				case "--daemonize":
 				$config['daemonize'] = true;
 				// If interval is already set, do not overwrite it.
 				$config['interval'] = $config['interval'] ?: 5;
@@ -326,6 +200,9 @@ function parse_arguments(array $args): array {
 					error("No existing daemon!");
 				}
 				die;
+			case "--self-update":
+				self_update();
+				die();
 			case "-h":
 			case "--help":
 				die(get_help());
@@ -336,29 +213,6 @@ function parse_arguments(array $args): array {
 	}
 
 	return $config;
-
-}
-
-function json_decode_safe(...$args) {
-
-	static $errors = [];
-
-	if (!$errors) {
-		$constants = get_defined_constants(true);
-		foreach ($constants["json"] as $name => $value) {
-			if (!strncmp($name, "JSON_ERROR_", 11)) {
-				$errors[$value] = $name;
-			}
-		}
-	}
-
-	$result = json_decode(...$args);
-	$err = json_last_error();
-	if ($err !== JSON_ERROR_NONE) {
-		error("Could not decode JSON ($errors[$err])");
-	}
-
-	return $result;
 
 }
 
