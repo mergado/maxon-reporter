@@ -4,9 +4,6 @@ namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
 
-const MAXON_EXTENSION = "mex";
-const GATHERERS_PATH = __DIR__ . "/gatherers";
-
 $pidDir = getenv('HOME') ?: "/tmp";
 define('DAEMON_PID_FILE', $pidDir . '/.maxon_reporter.pid');
 
@@ -99,22 +96,29 @@ function report(array $gatherers) {
 
 	$report = [];
 
-	foreach ($gatherers as $name) {
+	foreach ($gatherers as $path) {
 
-		$path = GATHERERS_PATH . "/$name." . MAXON_EXTENSION;
-
-		if (!file_exists($path)) {
-			error(sprintf("Extension %s not found at '%s'.", $name, $path));
+		$name = basename($path);
+		if (!is_readable($path)) {
+			error(sprintf("Gatherer '%s' not found.", $path));
 		}
 
 		info("Gathering from '$name' ...");
 		exec("chmod +x $path");
 		exec($path, $resultLines, $retval);
+
 		if ($retval !== 0) {
-			error(sprintf("Extension %s returned non-zero value %d.", $name, $retval));
+			error(sprintf("Gatherer '%s' returned non-zero value %d. Skipping.", $name, $retval));
+			continue;
 		}
 
-		$report += parse_ini_string(implode("\n", $resultLines), false, INI_SCANNER_TYPED);
+		$data = parse_ini_string(implode("\n", $resultLines), false, INI_SCANNER_TYPED);
+		if ($data === false) {
+			info(sprintf("Gatherer '%s' returned invalid data. Skipping.", $name));
+			continue;
+		}
+
+		$report += $data;
 
 	}
 

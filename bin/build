@@ -29,7 +29,6 @@ function get_stub() {
 const COMPILED_AT = "$datetime";
 const BINARY_PATH = __FILE__;
 if (extension_loaded('phar')) {
-	Phar::interceptFileFuncs();
 	set_include_path('phar://' . __FILE__ . '/' . get_include_path());
 	Phar::mapPhar('reporter');
 	include 'phar://' . __FILE__ . '/reporter.php';

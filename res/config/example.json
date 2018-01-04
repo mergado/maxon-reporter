@@ -1,8 +1,8 @@
 {
 	"target": "http://localhost/maxon-display/report",
 	"gatherers": [
-		"machine",
-		"apache"
+		"./res/gatherers/machine.sh",
+		"./res/gatherers/apache.sh"
 	],
 	"env": {
 		"APACHE_ACCESS_LOG": "/var/log/apache2/access.log",
