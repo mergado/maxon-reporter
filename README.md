@@ -14,15 +14,17 @@
 
 ***Convenient Oneliner™***:
 
-`git clone https://github.com/mergado/maxon-reporter.git && cd maxon-reporter && chmod +x reporter && ./reporter`
+```
+curl -LO https://github.com/mergado/maxon-reporter/raw/master/build/reporter && chmod +x reporter && ./reporter
+```
 
-*Note: `maxon-reporter` directory will be created in your current working directory.*
+*Note: `reporter` executable will be downloaded into your current working directory.*
 
-## Usage
+## Tips
 
-- An `example` configuration is located at `./config/example.json`.
-- Basic `gatherers` are located in `./gatherers` directory.
-- Use the `./reporter` to manage the whole thing.
+- An `example` configuration is located at `./res/example.json`.
+- Basic, example `gatherers` are located in `./res/gatherers` directory.
+- Use the `./build/reporter` *(that's a compiled PHAR binary)* to manage the whole damn thing.
 
 ### Examples:
 - `./reporter --help`
@@ -31,26 +33,28 @@
   - Fire a single gathering according to the configuration specified in the `config/example.json` file. Gathered results will be printed out.
 - `./reporter --config config/example.json --interval 30`
   - Gather data according to the configuration specified in the `config/example.json` file, do it every thirty *(`--interval 30`)* seconds and send gathered data to the endpoint specified in the config file's `"target"` field. Gathered results will be printed out.
-- `./reporter --config config/example.json --interval 30 --daemonize`
-  - The same as the one above, but daemonize the reporter and send it to background.
+- `./reporter --config config/example.json --daemonize`
+  - The same as the one above, but daemonize the reporter and send it to background. Interval will be 5 seconds by default.
 - `./reporter --pid`
   - Return the current running daemonized reporter's PID, if it exists.
+- `./reporter --self-update`
+  - Performs self-update from online repository. 
 
 ## Configuration
 
 An `example.json` configuration file is provided. Following fields are mandatory, unless specified otherwise:
 - `target` field: URL where to send the resulting JSON.
-- `gatherers` field: An array of gatherers to use. Gatherers must be placed in the `./gatherers` directory and must have the `.mex` extension *(eg. `./gatherers/machine.mex`)*
+- `gatherers` field: An array of gatherers to use. Use absolute paths or paths relative to your current working directory.
 - `env` *(optional)* field: Environment variables which will then be available during a gatherer's execution.
 - `payload` field: The template payload from which the resulting JSON will be constructed.
 
 ## Gatherers
 
 ### What is a gatherer?
-*A gatherer* is a script which reports back some information about the current state of the machine *(or whatever needed)*. The script's [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) is honored, and thus any language which supports it can be used to write a gatherer.
+*A gatherer* is a script -(program)* which reports back some information about the current state of the machine *(or whatever is needed)*. The script's [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) is honored; thus any language which supports it can be used to write *a gatherer*.
 
 ### How does a gatherer report information?
-*A gatherer* is executed by *the reporter*. *The gatherer's* standard output is then parsed by *the reporter* as an `.ini` string and values (variables) defined this way are then available to use in the `payload` template *(which, again, is defined in the config file)*.
+*A gatherer* is executed by *the reporter*. *The gatherer's* standard output is then parsed by *the reporter* ***as an `.ini` string*** and values *(ie. variables)* defined this way are then available to use in the `payload` template *(which, again, is defined in the config file)*.
 
 ### Example
 
