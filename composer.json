@@ -1,0 +1,5 @@
+{
+    "require-dev": {
+        "nette/tester": "^2.0"
+    }
+}
