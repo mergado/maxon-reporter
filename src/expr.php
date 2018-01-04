@@ -117,7 +117,7 @@ function try_expanding_variable($expr, array $varPool) {
 function build_expression_grammar() {
 
 	$g = [];
-	$g['numberRegex'] = '[+-]?\d+(\.\d+)?';
+	$g['numberRegex'] = '-?\d+(\.\d+)?';
 	$g['variableRegex'] = '[a-zA-Z][a-zA-Z0-9_.]*';
 	$g['operandRegex'] = "(({$g['variableRegex']})|({$g['numberRegex']}))";
 	$g['multiplyRegex'] = "{$g['operandRegex']}\s*[*\/]\s*{$g['operandRegex']}";
