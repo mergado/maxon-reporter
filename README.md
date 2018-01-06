@@ -51,10 +51,10 @@ An `example.json` configuration file is provided. Following fields are mandatory
 ## Gatherers
 
 ### What is a gatherer?
-*A gatherer* is a script -(program)* which reports back some information about the current state of the machine *(or whatever is needed)*. The script's [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) is honored; thus any language which supports it can be used to write *a gatherer*.
+*A gatherer* is a script *(program)* that reports back some information about the current state of the machine *(or whatever is needed)*. The script's [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) is honored, thus any language that supports it can be used to write *a gatherer*.
 
 ### How does a gatherer report information?
-*A gatherer* is executed by *the reporter*. *The gatherer's* standard output is then parsed by *the reporter* ***as an `.ini` string*** and values *(ie. variables)* defined this way are then available to use in the `payload` template *(which, again, is defined in the config file)*.
+*A gatherer* is executed by *the reporter*. *The gatherer's* standard **output is then parsed** by *the reporter* as [string in `INI` format](https://en.wikipedia.org/wiki/INI_file) and values *(ie. variables)* defined this way are then available to use in the `payload` template *(which, again, is defined in the config file)*.
 
 ### Example
 
