@@ -4,6 +4,9 @@ namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
 
+// Initialize Reporter app.
+init();
+
 $pidDir = getenv('HOME') ?: "/tmp";
 define('DAEMON_PID_FILE', $pidDir . '/.maxon_reporter.pid');
 
@@ -16,6 +19,9 @@ if (defined('COMPILED_AT')) {
 info("Machine: " . gethostname());
 
 $command = array_shift($argv);
+
+// If there are any arguments, parse them.
+// If there are none, display help and quit.
 if ($argv) {
 	$config = parse_arguments($argv);
 } else {

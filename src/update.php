@@ -13,6 +13,7 @@ function self_update() {
 		error("Self update can be performed only from within binary!");
 	}
 
+	info("Retrieving newest binary URL ...");
 	$url = get_latest_binary_url();
 	if (!$url) {
 		error("Could not retrieve latest binary URL!");

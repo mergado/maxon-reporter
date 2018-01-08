@@ -32,3 +32,37 @@ function json_decode_safe(...$args) {
 	return $result;
 
 }
+
+function init() {
+
+	error_reporting(E_ALL);
+	ini_set("display_errors", 1);
+
+	set_exception_handler(function($ex) {
+
+		$date = date("r");
+
+		$msg = <<<ERR
+█ {$date}
+Error: {$ex->getMessage()} ({$ex->getFile()} at line {$ex->getLine()})
+Stack:
+{$ex->getTraceAsString()}\n
+ERR;
+
+		echo $msg; // This will not be visible if daemonized.
+		file_put_contents('./error.log', $msg, FILE_APPEND); // Even if daemonized.
+
+	});
+
+	set_error_handler(function($severity, $message, $file, $line) {
+
+		// This error code is not included in error_reporting.
+		if (!(error_reporting() & $severity)) {
+			return;
+		}
+
+		throw new ErrorException($message, 0, $severity, $file, $line);
+
+	}, E_ALL);
+
+}
