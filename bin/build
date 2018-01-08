@@ -21,7 +21,7 @@ exec(sprintf("mv %s %s", BUILD_TARGET, TARGET_EXECUTABLE));
 function get_stub() {
 
 	$date = new \DateTime('now', new \DateTimeZone('UTC'));
-	$datetime = $date->format('c');
+	$datetime = $date->format('r');
 
 	return <<<STUB
 #!/usr/bin/env php

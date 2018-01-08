@@ -159,7 +159,7 @@ function send(string $url, array $payload) {
 
 	curl_exec($ch);
 	$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-	info(sprintf("(%s) Payload sent (received %s).", date('r'), $code));
+	info(sprintf("(%s) Payload sent to %s (received %s).", date('r'), $url, $code));
 
 }
 
