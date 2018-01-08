@@ -5,7 +5,9 @@ namespace Mergado\Maxon\Reporter;
 require_once __DIR__ . '/loader.php';
 
 const REPO = "mergado/maxon-reporter";
-const GITHUB_BINARY_URL_FORMAT = "https://api.github.com/repos/%s/contents/build/%s";
+const BINARY_FILENAME = "reporter";
+const GITHUB_API_URL = "https://api.github.com/";
+const GITHUB_BINARY_URL_FORMAT = "repos/%s/contents/build/%s";
 
 function self_update() {
 
@@ -27,7 +29,7 @@ function self_update() {
 }
 
 function api_fetch(string $url) {
-	return json_decode_safe(url_fetch($url), true);
+	return json_decode_safe(url_fetch(GITHUB_API_URL . $url), true);
 }
 
 function url_fetch(string $url) {
@@ -48,7 +50,7 @@ function url_fetch(string $url) {
 
 function get_latest_binary_url() {
 
-	$contentUrl = sprintf(GITHUB_BINARY_URL_FORMAT, REPO, basename(BINARY_PATH));
+	$contentUrl = sprintf(GITHUB_BINARY_URL_FORMAT, REPO, BINARY_FILENAME);
 	return api_fetch($contentUrl)['download_url'] ?? false;
 
 }

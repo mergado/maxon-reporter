@@ -28,3 +28,8 @@ Assert::same('-0.5', $result);
 Assert::same('18', eval_expression("(1 + 2) * 6"));
 Assert::same('13', eval_expression("1 + (2 * 6)"));
 Assert::same('13', eval_expression("(1 + (2) * 6)"));
+
+// Test it some more.
+Assert::same('0', eval_expression("-5 * e +14 +13*e - 4 - 9*e", [
+	'e' => 10,
+]));
