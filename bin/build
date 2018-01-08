@@ -9,14 +9,26 @@ const BUILD_TARGET = __DIR__ . '/../build/reporter.phar';
 const TARGET_EXECUTABLE = __DIR__ . '/../build/reporter';
 const APP_DIR = __DIR__ . '/../src';
 
+info("Building PHAR ...");
+
 $p = new Phar(BUILD_TARGET);
-$p->buildFromDirectory(APP_DIR);
+
+// Using our own iterator so we can pre-process each PHP file before
+// adding it to the PHAR.
+$srcIterator = new \RecursiveDirectoryIterator(
+	APP_DIR,
+	\RecursiveDirectoryIterator::SKIP_DOTS
+);
+foreach ($srcIterator as $file) {
+	add_file_to_phar($p, $file, APP_DIR);
+}
+
 $p->setStub(get_stub());
 
-// Mark as executable.
-exec(sprintf("chmod +x %s", BUILD_TARGET));
-// Remove .phar from the filename.
-exec(sprintf("mv %s %s", BUILD_TARGET, TARGET_EXECUTABLE));
+info("Finishing up ...");
+exec(sprintf("chmod +x %s", BUILD_TARGET)); // Mark as executable.
+exec(sprintf("mv %s %s", BUILD_TARGET, TARGET_EXECUTABLE)); // Remove .phar from the filename.
+info("Done.");
 
 function get_stub() {
 
@@ -39,4 +51,20 @@ if (extension_loaded('phar')) {
 __HALT_COMPILER();
 STUB;
 
+}
+
+function add_file_to_phar(\Phar $p, string $fullPath, string $srcDir) {
+
+	// Cut off the original path to get file's internal PHAR path.
+	$internalPath = str_replace($srcDir, null, $fullPath);
+
+	// Strip whitespace of each file before putting it into phar.
+	$stripped = php_strip_whitespace($fullPath);
+
+	$p->addFromString($internalPath, $stripped);
+
+}
+
+function info(string $string) {
+	echo "$string\n";
 }
