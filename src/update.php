@@ -4,6 +4,7 @@ namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
 
+const USER_AGENT = "mergado-maxon-reporter-app";
 const REPO = "mergado/maxon-reporter";
 const BINARY_FILENAME = "reporter";
 const GITHUB_API_URL = "https://api.github.com/";
@@ -61,8 +62,19 @@ function get_stream_context() {
 
 	// Github v3 API needs an user-agent to be sent, otherwise it returns 403.
 	if (!$context) {
-		$options = ['http' => ['header' => ['User-Agent: PHP']]];
+
+		$headers = [];
+		$headers[] = 'User-Agent: ' . USER_AGENT;
+
+		// This ENV may or may not be set.
+		// (And it should be set in Travis CI testing environment.)
+		if ($token = getenv('GITHUB_TOKEN')) {
+			$headers[] = "Authorization: token $token";
+		}
+
+		$options = ['http' => ['header' => implode("\n", $headers)]];
 		$context = stream_context_create($options);
+
 	}
 
 	return $context;
