@@ -29,7 +29,7 @@ if ($argv) {
 }
 
 if ($config['daemonize']) {
-	info("Damonizing ...");
+	info("Daemonizing ...");
 	daemonize();
 }
 
@@ -238,7 +238,7 @@ Options:
 --send, -s
 	POST the gathered report to target URL specified in the config file.
 --daemonize, -d
-	Damonize the reporter after initializing (send it to background).
+	Daemonize the reporter after initializing (send it to background).
 --interval <seconds>, -i <seconds>
 	Delay in seconds between gatherings (do it once by default).
 --pid, -p

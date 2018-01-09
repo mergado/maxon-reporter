@@ -13,6 +13,7 @@ Assert::contains('github', $result);
 // Test fetching some URL.
 $result = Reporter\url_fetch('https://httpbin.org/anything');
 Assert::truthy($result);
+Assert::true(json_decode($result) !== null);
 
 // Test fetching GitHub API URL.
 $result = Reporter\api_fetch('https://api.github.com');

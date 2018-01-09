@@ -1,5 +1,11 @@
 <?php
 
-require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/update.php';
-require_once __DIR__ . '/expr.php';
+const AUTOLOAD_FILES = [
+	__DIR__ . '/helpers.php',
+	__DIR__ . '/update.php',
+	__DIR__ . '/expr.php',
+];
+
+foreach (AUTOLOAD_FILES as $f) {
+	require_once $f;
+}
