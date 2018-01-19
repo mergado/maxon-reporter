@@ -49,20 +49,67 @@ Stack:
 {$ex->getTraceAsString()}\n
 ERR;
 
+		logger($msg);
 		echo $msg; // This will not be visible if daemonized.
-		file_put_contents('./error.log', $msg, FILE_APPEND); // Even if daemonized.
 
 	});
 
 	set_error_handler(function($severity, $message, $file, $line) {
-
-		// This error code is not included in error_reporting.
-		if (!(error_reporting() & $severity)) {
-			return;
-		}
-
 		throw new ErrorException($message, 0, $severity, $file, $line);
-
 	}, E_ALL);
 
+	register_shutdown_function('shutdown_handler');
+
+}
+
+/**
+ * This function registers signal handling and is to be called
+ * only inside the final daemonized process.
+ */
+function init_daemon() {
+
+	pcntl_signal(SIGTERM, "sig_handler");
+	pcntl_signal(SIGQUIT, "sig_handler");
+	pcntl_signal(SIGINT, "sig_handler");
+
+}
+
+function sig_handler($signal) {
+
+	info("Received signal $signal.");
+	switch ($signal) {
+		case SIGTERM:
+		case SIGQUIT:
+		case SIGINT:
+			// Define last signal so that shutdown_handler(), which will be invoked
+			// upon exiting, knows what signal did cause the exit.
+			define('LAST_SIGNAL', $signal);
+			exit;
+	}
+
+}
+
+function shutdown_handler() {
+
+	if (!defined('LAST_SIGNAL')) {
+
+		// Do not log exiting when reporter was not daemonized.
+		// If it were daemonized, this LAST_SIGNAL constant would be defined.
+		die;
+
+	}
+
+	$signal = sprintf("(received signal %d)", LAST_SIGNAL);
+	$date = date("r");
+
+	$msg = <<<MSG
+█ {$date} Shutdown. $signal\n
+MSG;
+
+	logger($msg);
+
+}
+
+function logger($msg) {
+	file_put_contents('./err.log', $msg, FILE_APPEND); // Even if daemonized.
 }

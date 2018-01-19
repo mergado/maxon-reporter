@@ -31,6 +31,7 @@ if ($argv) {
 if ($config['daemonize']) {
 	info("Daemonizing ...");
 	daemonize();
+	init_daemon();
 }
 
 run($config);
@@ -94,6 +95,10 @@ function run(array $config) {
 
 		sleep($config['interval']);
 
+		// We need to "repeat" the signal after sleep()
+		// so that our signal handler is invoked properly.
+		pcntl_signal_dispatch();
+
 	}
 
 }
@@ -112,6 +117,10 @@ function report(array $gatherers) {
 		info("Gathering from '$name' ...");
 		exec("chmod +x $path");
 		exec($path, $resultLines, $retval);
+
+		// We need to "repeat" the signal after exec()
+		// so that our signal handler is invoked properly.
+		pcntl_signal_dispatch();
 
 		if ($retval !== 0) {
 			error(sprintf("Gatherer '%s' returned non-zero value %d. Skipping.", $name, $retval));
