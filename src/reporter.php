@@ -25,13 +25,13 @@ $command = array_shift($argv);
 if ($argv) {
 	$config = parse_arguments($argv);
 } else {
+	define('NO_SHUTDOWN_HANDLER', true);
 	die(get_help());
 }
 
 if ($config['daemonize']) {
 	info("Daemonizing ...");
 	daemonize();
-	init_daemon();
 }
 
 run($config);
@@ -95,10 +95,6 @@ function run(array $config) {
 
 		sleep($config['interval']);
 
-		// We need to "repeat" the signal after sleep()
-		// so that our signal handler is invoked properly.
-		pcntl_signal_dispatch();
-
 	}
 
 }
@@ -117,10 +113,6 @@ function report(array $gatherers) {
 		info("Gathering from '$name' ...");
 		exec("chmod +x $path");
 		exec($path, $resultLines, $retval);
-
-		// We need to "repeat" the signal after exec()
-		// so that our signal handler is invoked properly.
-		pcntl_signal_dispatch();
 
 		if ($retval !== 0) {
 			error(sprintf("Gatherer '%s' returned non-zero value %d. Skipping.", $name, $retval));
@@ -275,7 +267,8 @@ function daemonize() {
 		error("Couldn't fork!");
 	} elseif ($newpid) {
 		// I'm the parent that started the fork. Let's self-destruct.
-		exit(0);
+		define('NO_SHUTDOWN_HANDLER', true);
+		die;;
 	}
 
 	// Become the session leader
@@ -288,7 +281,8 @@ function daemonize() {
 		error("Couldn't fork!");
 	} elseif ($newpid) {
 		// I'm the parent that started the second fork. Let's self-destruct.
-		exit(0);
+		define('NO_SHUTDOWN_HANDLER', true);
+		die;
 	}
 
 	$pid = posix_getpid();

@@ -1,5 +1,7 @@
 <?php
 
+namespace Mergado\Maxon\Reporter;
+
 require_once __DIR__ . '/loader.php';
 
 function info(string $text) {
@@ -36,17 +38,18 @@ function json_decode_safe(...$args) {
 function init() {
 
 	error_reporting(E_ALL);
-	ini_set("display_errors", 1);
+	ini_set("display_errors", 0);
+	Signals::register();
 
 	set_exception_handler(function($ex) {
 
 		$date = date("r");
+		$formattedStack = preg_replace('#(^|\n)#', "$1\t", $ex->getTraceAsString());
 
 		$msg = <<<ERR
-█ {$date}
-Error: {$ex->getMessage()} ({$ex->getFile()} at line {$ex->getLine()})
+Error {$ex->getMessage()} in file ({$ex->getFile()} at line {$ex->getLine()})
 Stack:
-{$ex->getTraceAsString()}\n
+{$formattedStack}
 ERR;
 
 		logger($msg);
@@ -55,61 +58,38 @@ ERR;
 	});
 
 	set_error_handler(function($severity, $message, $file, $line) {
-		throw new ErrorException($message, 0, $severity, $file, $line);
+		throw new \ErrorException($message, 0, $severity, $file, $line);
 	}, E_ALL);
 
-	register_shutdown_function('shutdown_handler');
+	register_shutdown_function(__NAMESPACE__ . '\\shutdown_handler');
 
-}
-
-/**
- * This function registers signal handling and is to be called
- * only inside the final daemonized process.
- */
-function init_daemon() {
-
-	pcntl_signal(SIGTERM, "sig_handler");
-	pcntl_signal(SIGQUIT, "sig_handler");
-	pcntl_signal(SIGINT, "sig_handler");
-
-}
-
-function sig_handler($signal) {
-
-	info("Received signal $signal.");
-	switch ($signal) {
-		case SIGTERM:
-		case SIGQUIT:
-		case SIGINT:
-			// Define last signal so that shutdown_handler(), which will be invoked
-			// upon exiting, knows what signal did cause the exit.
-			define('LAST_SIGNAL', $signal);
-			exit;
-	}
 
 }
 
 function shutdown_handler() {
 
-	if (!defined('LAST_SIGNAL')) {
-
-		// Do not log exiting when reporter was not daemonized.
-		// If it were daemonized, this LAST_SIGNAL constant would be defined.
+	// Used e.g. when exitting during launching daemonization...
+	if (defined('NO_SHUTDOWN_HANDLER')) {
 		die;
-
 	}
 
-	$signal = sprintf("(received signal %d)", LAST_SIGNAL);
-	$date = date("r");
+	if ($signal = Signals::getLatest()) {
+		$reason = sprintf("(received signal %d)", $signal);
+	} else {
+		$reason = "(no signal received)";
+	}
 
-	$msg = <<<MSG
-█ {$date} Shutdown. $signal\n
-MSG;
-
-	logger($msg);
+	logger("Shutdown. $reason");
 
 }
 
 function logger($msg) {
-	file_put_contents('./err.log', $msg, FILE_APPEND); // Even if daemonized.
+
+	$date = date("r");
+	$msg = <<<MSG
+[$date] $msg
+MSG;
+
+	file_put_contents('./info.log', $msg . "\n", FILE_APPEND); // Even if daemonized.
+
 }
