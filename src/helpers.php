@@ -109,13 +109,13 @@ function determine_pid_file_path() {
 
 	if (defined('BINARY_PATH')) {
 		$hash = substr(md5(BINARY_PATH), 0, 6);
-		$filename = sprintf('/.maxon_reporter_%s.pid', $hash);
+		$filename = sprintf('.maxon_reporter_%s.pid', $hash);
 	} else {
-		$filename = '/.maxon_reporter.pid';
+		$filename = '.maxon_reporter.pid';
 	}
 
 	$pidDir = getenv('HOME') ?: "/tmp";
-	return $pidDir . '/.maxon_reporter.pid';
+	return $pidDir . "/$filename";
 
 }
 
