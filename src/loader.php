@@ -1,6 +1,7 @@
 <?php
 
 const AUTOLOAD_FILES = [
+	__DIR__ . '/daemon.php',
 	__DIR__ . '/helpers.php',
 	__DIR__ . '/signals.php',
 	__DIR__ . '/update.php',

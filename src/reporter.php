@@ -7,52 +7,26 @@ require_once __DIR__ . '/loader.php';
 // Initialize Reporter app.
 init();
 
-$pidDir = getenv('HOME') ?: "/tmp";
-define('DAEMON_PID_FILE', $pidDir . '/.maxon_reporter.pid');
+define('DAEMON_PID_FILE', determine_pid_file_path());
 
 info("Maxon Reporter");
 
-info("Premysl Karbula, Mergado, 2017");
+info("Premysl Karbula, Mergado, 2018");
 if (defined('COMPILED_AT')) {
 	info(sprintf("Compiled at: %s", COMPILED_AT));
 }
 info("Machine: " . gethostname());
 
 $command = array_shift($argv);
-
-// If there are any arguments, parse them.
-// If there are none, display help and quit.
-if ($argv) {
-	$config = parse_arguments($argv);
-} else {
-	define('NO_SHUTDOWN_HANDLER', true);
-	die(get_help());
-}
-
-if ($config['daemonize']) {
-	info("Daemonizing ...");
-	daemonize();
-}
+$config = parse_arguments($argv);
 
 run($config);
 
 function run(array $config) {
 
-	$configFile = $config['config_path'];
-
-	if ($configFile) {
-
-		if (is_readable($configFile)) {
-			$json = file_get_contents($configFile);
-			$userConfig = json_decode_safe($json, true);
-		} else {
-			error("Config file '$configFile' not found!");
-		}
-
-	} else {
-		error("No config file specified!");
-		die;
-	}
+	$configFile = determine_config_file($config['config_path']);
+	$json = file_get_contents($configFile);
+	$userConfig = json_decode_safe($json, true);
 
 	$template = $userConfig['payload'] ?? [];
 	if (!$template) {
@@ -69,6 +43,10 @@ function run(array $config) {
 		error("Config file doesn't contain valid 'target' URL!");
 	}
 
+	if (!$config['single']) {
+		daemonize();
+	}
+
 	// Pass environment variables defined in config file to the current process
 	// environment.
 	$envVars = $userConfig['env'] ?? [];
@@ -80,8 +58,9 @@ function run(array $config) {
 
 		$report = report($gatherers);
 
-		if (!$config['daemonize']) {
+		if ($config['single']) {
 			echo(json_encode($report, JSON_PRETTY_PRINT) . "\n");
+			die;
 		}
 
 		if ($targetUrl) {
@@ -107,7 +86,8 @@ function report(array $gatherers) {
 
 		$name = basename($path);
 		if (!is_readable($path)) {
-			error(sprintf("Gatherer '%s' not found.", $path));
+			info(sprintf("Gatherer '%s' not found. Skipping.", $path));
+			continue;
 		}
 
 		info("Gathering from '$name' ...");
@@ -115,7 +95,7 @@ function report(array $gatherers) {
 		exec($path, $resultLines, $retval);
 
 		if ($retval !== 0) {
-			error(sprintf("Gatherer '%s' returned non-zero value %d. Skipping.", $name, $retval));
+			info(sprintf("Gatherer '%s' returned non-zero value %d. Skipping.", $name, $retval));
 			continue;
 		}
 
@@ -173,11 +153,9 @@ function send(string $url, array $payload) {
 function parse_arguments(array $args): array {
 
 	$config = [
-		'config_path' => false,
-		'daemonize' => false,
-		'send' => false,
-		'interval' => false,
-		'env' => [],
+		'config_path' => '',
+		'single' => false,
+		'interval' => 5,
 	];
 
 	while ($a = array_shift($args)) {
@@ -187,14 +165,8 @@ function parse_arguments(array $args): array {
 				$config['config_path'] = array_shift($args);;
 				break;
 			case "-s":
-			case "--send":
-				$config['send'] = true;
-				break;
-			case "-d":
-				case "--daemonize":
-				$config['daemonize'] = true;
-				// If interval is already set, do not overwrite it.
-				$config['interval'] = $config['interval'] ?: 5;
+				case "--single":
+				$config['single'] = true;
 				break;
 			case "-i":
 			case "--interval":
@@ -235,13 +207,13 @@ Options:
 --help, -h
 	Display this help.
 --config <path>, -c <path>
-	Path to the config file.
---send, -s
-	POST the gathered report to target URL specified in the config file.
---daemonize, -d
-	Daemonize the reporter after initializing (send it to background).
+	Specify path to the config file.
+	"./config/config.json" or "./config.json" are tried by default.
+--single, -s
+	Run the reporter once and print out gathered results.
+	By default the reporter is automatically daemonized.
 --interval <seconds>, -i <seconds>
-	Delay in seconds between gatherings (do it once by default).
+	Delay in seconds between gatherings (default 5).
 --pid, -p
 	Report an existing daemon's PID.
 --self-update
@@ -249,82 +221,5 @@ Options:
 
 
 HELP;
-
-}
-
-// Daemonization.
-
-function daemonize() {
-
-	if ($daemonPid = get_daemon_pid()) {
-		exec("kill -9 $daemonPid 2>&1 > /dev/null");
-		@unlink(DAEMON_PID_FILE);
-		info("Killed previous daemon running with PID $daemonPid.\n");
-	}
-
-	$newpid = pcntl_fork();
-	if ($newpid === -1) {
-		error("Couldn't fork!");
-	} elseif ($newpid) {
-		// I'm the parent that started the fork. Let's self-destruct.
-		define('NO_SHUTDOWN_HANDLER', true);
-		die;;
-	}
-
-	// Become the session leader
-	posix_setsid();
-	usleep(100000);
-
-	// Fork again, but now as session leader.
-	$newpid = pcntl_fork();
-	if ($newpid === -1) {
-		error("Couldn't fork!");
-	} elseif ($newpid) {
-		// I'm the parent that started the second fork. Let's self-destruct.
-		define('NO_SHUTDOWN_HANDLER', true);
-		die;
-	}
-
-	$pid = posix_getpid();
-	file_put_contents(DAEMON_PID_FILE, $pid);
-
-	detach_terminal();
-
-}
-
-function detach_terminal() {
-
-	fclose(STDIN);
-	fclose(STDOUT);
-	fclose(STDERR);
-
-	$void = fopen('/dev/null', 'w');
-
-	// Catch all input and send it to /dev/null.
-	// If don't do this, any output would (I figure) result in silent error and then exit.
-	// (Silent because there's no way to output any error - STDERR is closed.)
-	ob_start(function($buffer) use($void) {
-		fwrite($void, $buffer);
-	}, 100);
-
-	ob_clean();
-
-}
-
-function get_daemon_pid() {
-
-	// Does PID file exist?
-	if (!is_readable(DAEMON_PID_FILE)) {
-		return false;
-	}
-
-	$pid = file_get_contents(DAEMON_PID_FILE);
-
-	// Does the PID (process) really exist?
-	if (!file_exists( "/proc/$pid")) {
-		return false;
-	}
-
-	return $pid;
 
 }

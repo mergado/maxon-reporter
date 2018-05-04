@@ -13,8 +13,7 @@ info("Building PHAR ...");
 
 $p = new Phar(BUILD_TARGET);
 
-// Using our own iterator so we can pre-process each PHP file before
-// adding it to the PHAR.
+// Using our own iterator so we can pre-process each PHP file before adding it to the PHAR.
 $srcIterator = new \RecursiveDirectoryIterator(
 	APP_DIR,
 	\RecursiveDirectoryIterator::SKIP_DOTS

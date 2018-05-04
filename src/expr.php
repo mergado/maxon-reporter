@@ -62,37 +62,46 @@ function eval_expression($expr, array $varPool = [], $state = null) {
 	#x", $expr, $m);
 	$operator = trim($m['op'] ?? null);
 
-	if ($operator) {
+	try {
 
-		$l = trim($m['l']);
-		$r = trim($m['r']);
-		$l = try_expanding_variable($l, $varPool);
-		$r = try_expanding_variable($r, $varPool);
+		if ($operator) {
 
-		// Calculate the result.
-		switch ($operator) {
-			case "*":
-				$result = $l * $r;
-			break;
-			case "/":
-				$result = $l / $r;
-			break;
-			case "-":
-				$result = $l - $r;
-			break;
-			case "+":
-				$result = $l + $r;
-			break;
+			$l = trim($m['l']);
+			$r = trim($m['r']);
+			$l = try_expanding_variable($l, $varPool);
+			$r = try_expanding_variable($r, $varPool);
+
+			// Calculate the result.
+			switch ($operator) {
+				case "*":
+					$result = $l * $r;
+				break;
+				case "/":
+					$result = $l / $r;
+				break;
+				case "-":
+					$result = $l - $r;
+				break;
+				case "+":
+					$result = $l + $r;
+				break;
+			}
+
+		} else {
+
+			// Expression is now only a single variable or a value.
+			$result = try_expanding_variable($expr, $varPool);
+
 		}
 
-	} else {
+		return $result;
 
-		// Expression is now only a single variable or a value.
-		$result = try_expanding_variable($expr, $varPool);
+	} catch (\Throwable $e) {
+
+		// In case of any error, return questionmark.
+		return '?';
 
 	}
-
-	return $result;
 
 }
 

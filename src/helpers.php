@@ -9,7 +9,9 @@ function info(string $text) {
 }
 
 function error(string $text) {
-	die("! Error: $text\n");
+	$msg = "! Error: $text";
+	logger($msg);
+	die("$msg\n");
 }
 
 function json_decode_safe(...$args) {
@@ -38,8 +40,7 @@ function json_decode_safe(...$args) {
 function init() {
 
 	error_reporting(E_ALL);
-	ini_set("display_errors", 0);
-	Signals::register();
+	ini_set("display_errors", 1);
 
 	set_exception_handler(function($ex) {
 
@@ -61,8 +62,14 @@ ERR;
 		throw new \ErrorException($message, 0, $severity, $file, $line);
 	}, E_ALL);
 
-	register_shutdown_function(__NAMESPACE__ . '\\shutdown_handler');
+}
 
+function init_daemon() {
+
+	ini_set("display_errors", 0);
+	Signals::register();
+
+	register_shutdown_function(__NAMESPACE__ . '\\shutdown_handler');
 
 }
 
@@ -91,5 +98,48 @@ function logger($msg) {
 MSG;
 
 	file_put_contents('./info.log', $msg . "\n", FILE_APPEND); // Even if daemonized.
+
+}
+
+/**
+ * This will allow running multiple reporters on a single machine by assigning
+ * each reporter's instance (running from different path) a unique PID file.
+ */
+function determine_pid_file_path() {
+
+	if (defined('BINARY_PATH')) {
+		$hash = substr(md5(BINARY_PATH), 0, 6);
+		$filename = sprintf('/.maxon_reporter_%s.pid', $hash);
+	} else {
+		$filename = '/.maxon_reporter.pid';
+	}
+
+	$pidDir = getenv('HOME') ?: "/tmp";
+	return $pidDir . '/.maxon_reporter.pid';
+
+}
+
+function determine_config_file(string $overridePath) {
+
+	static $predefinedPaths = [
+		'./config/config.json',
+		'./config.json',
+	];
+
+	if ($overridePath) {
+		if (is_readable($overridePath)) {
+			return $overridePath;
+		} else {
+			error("Specified config file '$configFile' not found!");
+		}
+	}
+
+	foreach ($predefinedPaths as $path) {
+		if (is_readable($path)) {
+			return $path;
+		}
+	}
+
+	error(sprintf("No config file found! (tried: '%s')", implode(", '", $predefinedPaths)));
 
 }
