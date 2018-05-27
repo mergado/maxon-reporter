@@ -8,10 +8,17 @@ function info(string $text) {
 	echo "> $text\n";
 }
 
-function error(string $text) {
+function error(string $text, $die = true) {
+
 	$msg = "! Error: $text";
+
 	logger($msg);
-	die("$msg\n");
+	echo $msg;
+
+	if ($die) {
+		die(1);
+	}
+
 }
 
 function json_decode_safe(...$args) {

@@ -114,7 +114,8 @@ function try_expanding_variable($expr, array $varPool) {
 		if (isset($varPool[$expr])) {
 			return $varPool[$expr];
 		} else {
-			error("Undefined variable '$expr'");
+			error("Undefined variable '$expr'", false);
+			return 0;
 		}
 	}
 
