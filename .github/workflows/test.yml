@@ -1,0 +1,28 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        php: ['7.3', '7.4', '8']
+    steps:
+      - uses: actions/checkout@v2
+      - name: "PHP init"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+      - name: "Composer"
+        run: |
+          composer install --optimize-autoloader
+      - name: "Test"
+        run: |
+          chmod +x ./bin/*
+          ./bin/test
