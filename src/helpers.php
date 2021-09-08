@@ -152,3 +152,31 @@ function determine_config_file(string $overridePath) {
 	error(sprintf("No config file found! (tried: '%s')", implode(", '", $predefinedPaths)));
 
 }
+
+function expand_variables(string $string, array $variables) {
+
+	// Evaluate expressions that may be present.
+	return preg_replace_callback('#\${(.*?)}#', function($m) use ($variables) {
+		return eval_expression($m[1], $variables);
+	}, $string);
+
+}
+
+
+/**
+ * Rewrite marked fields in template array (recursively) and replace variable
+ * placeholders with variable values..
+ */
+function prepare(array $template, array $variables): array {
+
+	foreach ($template as &$value) {
+		if (is_array($value)) {
+			$value = prepare($value, $variables);
+		} elseif (is_string($value)) {
+			$value = expand_variables($value, $variables);
+		}
+	}
+
+	return $template;
+
+}

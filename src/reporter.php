@@ -123,28 +123,6 @@ function report(array $gatherers) {
 
 }
 
-/**
- * Rewrite marked fields in template array (recursively).
- */
-function prepare(array $template, array $variables): array {
-
-	foreach ($template as $key => &$value) {
-		if (is_array($value)) {
-			$value = prepare($value, $variables);
-		} else {
-
-			// Evaluate expressions that may be present.
-			$value = preg_replace_callback('#\${(.*)}#', function($m) use ($variables) {
-				return eval_expression($m[1], $variables);
-			}, $value);
-
-		}
-	}
-
-	return $template;
-
-}
-
 function send(string $url, array $payload) {
 
 	// Open connection
