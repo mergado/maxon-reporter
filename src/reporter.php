@@ -8,14 +8,22 @@ require_once __DIR__ . '/loader.php';
 init();
 
 define('DAEMON_PID_FILE', determine_pid_file_path());
+const REQUIRED_EXTENSIONS = [
+	'pcntl',
+	'json',
+	'posix',
+	'curl',
+];
 
 info("Maxon Reporter");
 
-info("Premysl Karbula, Mergado, 2018");
+info("Premysl Karbula, Mergado, 2021");
 if (defined('COMPILED_AT')) {
 	info(sprintf("Compiled at: %s", COMPILED_AT));
 }
 info("Machine: " . gethostname());
+
+bootcheck();
 
 $command = array_shift($argv);
 $config = parse_arguments($argv);
@@ -221,5 +229,20 @@ Options:
 
 
 HELP;
+
+}
+
+function bootcheck() {
+
+	$missing = [];
+	foreach (REQUIRED_EXTENSIONS as $ext) {
+		if (!extension_loaded($ext)) {
+			$missing[] = $ext;
+		}
+	}
+
+	if ($missing) {
+		error("Missing required PHP extensions: " . implode(', ', $missing));
+	}
 
 }
