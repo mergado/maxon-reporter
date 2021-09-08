@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
@@ -60,7 +62,7 @@ function eval_expression($expr, array $varPool = [], $state = null) {
 		\s*(?<op>[+*/\-])\s*
 		(?<r>{$grammar['operandRegex']})
 	#x", $expr, $m);
-	$operator = trim($m['op'] ?? null);
+	$operator = trim($m['op'] ?? '');
 
 	try {
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
@@ -37,9 +39,16 @@ function url_fetch(string $url) {
 
 	$context = get_stream_context();
 
+	if (PHP_MAJOR_VERSION >= 8) {
+		$headers = get_headers($url, false, $context);
+	} else {
+		// PHP 7 compatibility.
+		$headers = get_headers($url, 0, $context);
+	}
+
 	// Check if the URL doesn't return an error.
-	if ($headers = get_headers($url, null, $context)) {
-		list($http, $code, $reason) = explode(' ', reset($headers), 3);
+	if ($headers) {
+		[$http, $code, $reason] = explode(' ', reset($headers), 3);
 		if ($code > 400) {
 			error("Cannot fetch '$url': [$code] $reason.");
 		}

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
@@ -47,7 +49,7 @@ function json_decode_safe(...$args) {
 function init() {
 
 	error_reporting(E_ALL);
-	ini_set("display_errors", 1);
+	ini_set("display_errors", '1');
 
 	set_exception_handler(function($ex) {
 
@@ -73,7 +75,7 @@ ERR;
 
 function init_daemon() {
 
-	ini_set("display_errors", 0);
+	ini_set("display_errors", '0');
 	Signals::register();
 
 	register_shutdown_function(__NAMESPACE__ . '\\shutdown_handler');
@@ -137,7 +139,7 @@ function determine_config_file(string $overridePath) {
 		if (is_readable($overridePath)) {
 			return $overridePath;
 		} else {
-			error("Specified config file '$configFile' not found!");
+			error("Specified config file '$overridePath' not found!");
 		}
 	}
 

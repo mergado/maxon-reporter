@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mergado\Maxon\Reporter;
 
 require_once __DIR__ . '/loader.php';
