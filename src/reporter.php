@@ -35,26 +35,18 @@ run($config);
 function run(array $config) {
 
 	$configFile = determine_config_file($config['config_path']);
+	if (!is_file($configFile) || !is_readable($configFile)) {
+		error("Config file '$configFile' is not a readable file.");
+	}
+
 	$json = file_get_contents($configFile);
 	$userConfig = json_decode_safe($json, true);
 
-	$template = $userConfig['payload'] ?? [];
-	if (!$template) {
-		error("Config file doesn't contain valid 'payload' template!");
-	}
+	[$template, $gatherers, $targetUrls] = validate_config($userConfig);
 
-	$gatherers = $userConfig['gatherers'] ?? [];
-	if (!$gatherers) {
-		error("Config file doesn't contain valid array of 'gatherers'!");
-	}
-
-	$targetUrl = $userConfig['target'] ?? false;
-	if (!$targetUrl) {
-		error("Config file doesn't contain valid 'target' URL!");
-	}
-
-	if (!$config['single']) {
-		daemonize();
+	info("Will report to targets:");
+	foreach ($targetUrls as $targetUrl) {
+		echo "    $targetUrl\n";
 	}
 
 	// Pass environment variables defined in config file to the current process
@@ -68,18 +60,33 @@ function run(array $config) {
 
 		$report = report($gatherers);
 
-		if ($config['single']) {
+		if ($config['try']) {
+
+			info("Gathered data");
 			echo(json_encode($report, JSON_PRETTY_PRINT) . "\n");
+
+			info("Final payload");
+			$final = prepare($template, $report);
+			echo(json_encode($final, JSON_PRETTY_PRINT) . "\n");
+
 			die;
+
 		}
 
-		if ($targetUrl) {
-			$final = prepare($template, $report);
-			send($targetUrl, $final);
-		}
+		// At this point we know that $targetUrls is a non-empty list of
+		// strings (function validate_config() takes care of that).
+		// Let's create the final payload and send the result to all targets.
+		$final = prepare($template, $report);
+		array_walk($targetUrls, function ($url) use ($final) {
+			send($url, $final);
+		});
 
 		if ($config['interval'] === false) {
 			break;
+		}
+
+		if (!$config['try']) {
+			daemonize();
 		}
 
 		sleep($config['interval']);
@@ -134,7 +141,7 @@ function send(string $url, array $payload) {
 
 	curl_exec($ch);
 	$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-	info(sprintf("(%s) Payload sent to %s (received %s).", date('r'), $url, $code));
+	info(sprintf("[curl] (%s) Payload sent to %s (received HTTP status %s).", date('r'), $url, $code));
 
 }
 
@@ -142,7 +149,7 @@ function parse_arguments(array $args): array {
 
 	$config = [
 		'config_path' => '',
-		'single' => false,
+		'try' => false,
 		'interval' => 5,
 	];
 
@@ -152,9 +159,9 @@ function parse_arguments(array $args): array {
 			case "--config":
 				$config['config_path'] = array_shift($args);;
 				break;
-			case "-s":
-				case "--single":
-				$config['single'] = true;
+			case "-t":
+				case "--try":
+				$config['try'] = true;
 				break;
 			case "-i":
 			case "--interval":
@@ -197,13 +204,13 @@ Options:
 --config <path>, -c <path>
 	Specify path to the config file.
 	"./config/config.json" or "./config.json" are tried by default.
---single, -s
-	Run the reporter once and print out gathered results.
-	By default the reporter is automatically daemonized.
+--try, -t
+	Run the reporter once and print out gathered results as payload.
+	Otherwise (by default) the reporter is automatically daemonized.
 --interval <seconds>, -i <seconds>
 	Delay in seconds between gatherings (default 5).
 --pid, -p
-	Report an existing daemon's PID.
+	Print out an existing daemon's PID.
 --self-update
 	Perform a self-update from online repository.
 

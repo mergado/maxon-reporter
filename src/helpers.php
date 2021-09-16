@@ -16,10 +16,23 @@ function error(string $text, $die = true) {
 
 	logger($msg);
 	echo $msg;
+	echo "\n";
 
 	if ($die) {
 		die(1);
 	}
+
+}
+
+function iter_all(iterable $input, ?callable $callback = null): bool {
+
+	foreach ($input as $v) {
+        if (!($callback !== null ? $callback($v) : $v)) {
+            return false;
+        }
+    }
+
+    return true;
 
 }
 
@@ -178,5 +191,65 @@ function prepare(array $template, array $variables): array {
 	}
 
 	return $template;
+
+}
+
+/**
+ * Validate and return a list of strings (valid target URLs) or null,
+ * if the argument does not constitute a valid value for "target" field.
+ *
+ * Valid values for the "target" field are:
+ * 1. A simple string (single target URL).
+ * 2. A non-empty list of strings (multiple target URLs).
+ */
+function validate_config_target($target): ?array {
+
+	if (is_string($target)) {
+		// Always return list of strings.
+		return [$target];
+	}
+
+	if (is_array($target)) {
+
+		// List must not be empty.
+		if (!$target) {
+			return null;
+		}
+
+		// All items in the list must be strings.
+		$areAllStrings = iter_all($target, function($x) {
+			return is_string($x);
+		});
+
+		if (!$areAllStrings) {
+			return null;
+		}
+
+		return $target;
+
+	}
+
+	return null;
+
+}
+
+function validate_config(array $config): array {
+
+	$template = $config['payload'] ?? false;
+	if (!$template) {
+		error("Config file doesn't contain valid 'payload' template!");
+	}
+
+	$gatherers = $config['gatherers'] ?? false;
+	if (!$gatherers) {
+		error("Config file doesn't contain valid array of 'gatherers'!");
+	}
+
+	$targetUrls = validate_config_target($config['target'] ?? false);
+	if (!$targetUrls) {
+		error("Config file 'target' URL must be string or a list of strings!");
+	}
+
+	return [$template, $gatherers, $targetUrls];
 
 }
