@@ -180,11 +180,11 @@ function expand_variables(string $string, array $variables) {
  * Rewrite marked fields in template array (recursively) and replace variable
  * placeholders with variable values..
  */
-function prepare(array $template, array $variables): array {
+function prepare_payload(array $template, array $variables): array {
 
 	foreach ($template as &$value) {
 		if (is_array($value)) {
-			$value = prepare($value, $variables);
+			$value = prepare_payload($value, $variables);
 		} elseif (is_string($value)) {
 			$value = expand_variables($value, $variables);
 		}

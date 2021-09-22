@@ -56,46 +56,72 @@ function run(array $config) {
 		putenv("$name=$value");
 	}
 
+	// If "--try", exit after the first gathering-and-sending.
+	if ($config['try']) {
+		gather_and_send($gatherers, $template, $targetUrls, true);
+		die;
+	}
+
+	// This is no "--try", so print out how the first gathering-and-sending went
+	// and then daemonize.
+	gather_and_send($gatherers, $template, $targetUrls);
+	daemonize();
+
 	while (true) {
 
-		$report = report($gatherers);
-
-		if ($config['try']) {
-
-			info("Gathered data");
-			echo(json_encode($report, JSON_PRETTY_PRINT) . "\n");
-
-			info("Final payload");
-			$final = prepare($template, $report);
-			echo(json_encode($final, JSON_PRETTY_PRINT) . "\n");
-
-			die;
-
-		}
-
-		// At this point we know that $targetUrls is a non-empty list of
-		// strings (function validate_config() takes care of that).
-		// Let's create the final payload and send the result to all targets.
-		$final = prepare($template, $report);
-		array_walk($targetUrls, function ($url) use ($final) {
-			send($url, $final);
-		});
-
-		if ($config['interval'] === false) {
-			break;
-		}
-
-		if (!$config['try']) {
-			daemonize();
-		}
-
+		gather_and_send($gatherers, $template, $targetUrls);
 		sleep($config['interval']);
 
 	}
 
 }
 
-function report(array $gatherers) {
+/**
+ * Execute gatherers, prepare payload and send it to all target URLs.
+ *
+ * Optionally, gathered data can be printed out to STDOUT.
+ */
+function gather_and_send(
+	array $gatherers,
+	array $template,
+	array $targetUrls,
+	bool $printGathered = false
+) {
+
+	$report = execute_gatherers($gatherers);
+	$payload = prepare_payload($template, $report);
+
+	if ($printGathered) {
+		info("Gathered data");
+		echo(json_encode($report, JSON_PRETTY_PRINT) . "\n");
+
+		info("Final payload");
+		$final = prepare_payload($template, $report);
+		echo(json_encode($final, JSON_PRETTY_PRINT) . "\n");
+	}
+
+	send_payload($targetUrls, $payload);
+
+}
+
+/**
+ * Send payload (passed as array) as JSON to all specified URLs.
+ */
+function send_payload(array $targetUrls, array $payload) {
+
+	// At this point we know that $targetUrls is a non-empty list of
+	// strings (function validate_config() takes care of that).
+	array_walk($targetUrls, function ($url) use ($payload) {
+		send($url, $payload);
+	});
+
+}
+
+/**
+ * Execute all gatherers (passed as list of paths to executables) and
+ * gather their as-INI-parsed results in one big array, which is returned.
+ */
+function execute_gatherers(array $gatherers): array {
 
 	$report = [];
 
@@ -141,7 +167,15 @@ function send(string $url, array $payload) {
 
 	curl_exec($ch);
 	$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-	info(sprintf("[curl] (%s) Payload sent to %s (received HTTP status %s).", date('r'), $url, $code));
+
+	$msg = sprintf(
+		"[curl] (%s) Payload sent to '%s' (received HTTP status %s).",
+		date('r'),
+		$url,
+		$code
+	);
+
+	info($msg);
 
 }
 

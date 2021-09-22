@@ -23,7 +23,7 @@ function daemonize() {
 	} elseif ($newpid) {
 		// I'm the parent that started the fork. Let's self-destruct.
 		define('NO_SHUTDOWN_HANDLER', true);
-		die;;
+		die;
 	}
 
 	// Become the session leader
@@ -58,8 +58,9 @@ function detach_terminal() {
 	$void = fopen('/dev/null', 'w');
 
 	// Catch all input and send it to /dev/null.
-	// If don't do this, any output would (I figure) result in silent error and then exit.
-	// (Silent because there's no way to output any error - STDERR is closed.)
+	// If we didn't do this, any output would (I figure) result in silent error
+	// and then exit. (Silent because there's no way to output any
+	// error - because the STDERR is closed.)
 	ob_start(function($buffer) use($void) {
 		fwrite($void, $buffer);
 	}, 100);

@@ -1,5 +1,5 @@
 {
-	"target": "http://localhost/maxon-display/report",
+	"target": ["http://localhost/maxon-display/report"],
 	"gatherers": [
 		"./example/gatherers/machine.sh",
 		"./example/gatherers/apache.sh"
@@ -10,7 +10,7 @@
 	},
 	"payload": {
 		"machine": {
-			"id": "example.machine",
+			"name": "example.machine",
 			"hostname": "${machine.hostname}",
 			"title": "Example"
 		},
