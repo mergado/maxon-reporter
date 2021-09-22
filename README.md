@@ -1,6 +1,6 @@
 <p>
-  <h1 align="center">Maxon Reporter</h1>
-  <p align="center">Machine Extensible Monitoring - Reporter</p>
+	<h1 align="center">Maxon Reporter</h1>
+	<p align="center">Machine Extensible Monitoring - Reporter</p>
 </p>
 
 ## Description
@@ -35,29 +35,29 @@ Just run the reporter. It will keep running in the background.
 
 ### Examples:
 - `./reporter`
-  - Run the reporter in standard mode. This means:
-    1. Use the configuration file located at default path
-      - Default config path is either `./config.json` or `./config/config.json`.
-    2. Display the first gathering and sending data to target URL(s).
-      - This is to see any potential problems with gatherers _(or their output)_ or with the resulting HTTP request to the target URL(s)
-    3. **Daemonize**.
-      - And keep running in background.
+	- Run the reporter in standard mode. This means:
+		1. Use the configuration file located at default path
+			- Default config path is either `./config.json` or `./config/config.json`.
+		2. Display the first gathering and sending data to target URL(s).
+			- This is to see any potential problems with gatherers _(or their output)_ or with the resulting HTTP request to the target URL(s)
+		3. **Daemonize**.
+			- And keep running in background.
 - `./reporter --try`
-  - Reporter will execute gatherers once and print out:
-    1. Gathered data.
-    2. The final JSON payload which is going to be sent to target URL(s).
-    3. HTTP code(s) returned from request(s) to target URL(s).
+	- Reporter will execute gatherers once and print out:
+		1. Gathered data.
+		2. The final JSON payload which is going to be sent to target URL(s).
+		3. HTTP code(s) returned from request(s) to target URL(s).
 - `./reporter --pid`
-  - Return the current running daemonized reporter's PID, if it exists.
+	- Return the current running daemonized reporter's PID, if it exists.
 - `./reporter --self-update`
-  - Performs **self-update** from online repository.
+	- Performs **self-update** from online repository.
 - `./reporter --config some_dir/some_config.json`
-  - Run the reporter as in standard mode _(daemonize)_ - but use the configuration specified in the `some_dir/some_config.json` file.
+	- Run the reporter as in standard mode _(daemonize)_ - but use the configuration specified in the `some_dir/some_config.json` file.
 - `./reporter --interval 30`
-  - Run the reporter as in standard mode - but gather data each 30 seconds instead of default 5 seconds.
-  - The same as the one above, but daemonize the reporter and send it to background. Interval will be 5 seconds by default.
+	- Run the reporter as in standard mode - but gather data each 30 seconds instead of default 5 seconds.
+	- The same as the one above, but daemonize the reporter and send it to background. Interval will be 5 seconds by default.
 - `./reporter --help`
-  - Display available options.
+	- Display available options.
 
 ## Configuration
 
@@ -85,15 +85,15 @@ _See below._
 ```json
 {
 	"target": [
-        "http://localhost/maxon-display/report"
-        "http://whatever.domain/i-dont-really-care/report"
-    ],
+		"http://localhost/maxon-display/report"
+		"http://whatever.domain/i-dont-really-care/report"
+	],
 	"gatherers": [
 		"./gatherers/machine.sh",
 		"./gatherers_py/some_script.py",
 	],
 	"env": {
-	    "SOME_ENV_VAR_XYZ": "this env var is available in gatherers",
+		"SOME_ENV_VAR_XYZ": "this env var is available in gatherers",
 	},
 	"payload": {
 		"machine": {
@@ -125,8 +125,8 @@ _See below._
 					"alert": "${1.8 * machine.cpu.load_avg_max}"
 				}
 			}
-        }
-    }
+		}
+	}
 }
 
 ```
@@ -141,28 +141,28 @@ books.last_word_in_the_newest_book=Serendipity
 ```
 
 ### Using variables in the payload template
-```json
+```jsonc
 ...
-    "id.storage_dirs.or_whatever": { // This is an arbitrary ID and does not have to match the variable name.
-        "title": "Directories",
-        "type": "number",
-        "value": "${storage.number_of_directories}", // The same ID (variable name) as reported by the gatherer.
-        "config": {
-            "unit": "dirs"
-        }
-    },
-    "id.storage_files": {
-        "title": "Files",
-        "type": "number",
-        "value": "${storage.number_of_files / 1000}", // Expressions can be used for advanced computations.
-        "config": {
-            "unit": "kilofiles"
-        }
-    },
-    "id.word": {
-        "title": "Last word",
-        "type": "string",
-        "value": "${books.last_word_in_the_newest_book}",
-    },
+	"id.storage_dirs.or_whatever": { // Arbitrary ID and doesn't have to match the variable name.
+		"title": "Directories",
+		"type": "number",
+		"value": "${storage.number_of_directories}", // Variable name as reported by the gatherer.
+		"config": {
+			"unit": "dirs"
+		}
+	},
+	"id.storage_files": {
+		"title": "Files",
+		"type": "number",
+		"value": "${storage.number_of_files / 1000}", // Simple expressions can be used for advanced computations.
+		"config": {
+			"unit": "kilofiles"
+		}
+	},
+		"id.word": {
+		"title": "Last word",
+		"type": "string",
+		"value": "${books.last_word_in_the_newest_book}",
+	},
 ...
 ```
